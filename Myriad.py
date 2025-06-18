@@ -11,7 +11,7 @@ sheet_params = pd.DataFrame({
     'LastProduct': ['SXF', 'FEXD24', 'BAX', 'UKNG', 'UKNG', 'COPPER', 'RICE', 'LUMBER']
 })
 
-file_path = "/Users/nilaysinghsolanki/Downloads/Spread Ratios.xlsx"
+file_path = "Spread Ratios.xlsx"
 
 def get_sheet_params(sheet_name):
     row = sheet_params[sheet_params['SheetName'] == sheet_name]
