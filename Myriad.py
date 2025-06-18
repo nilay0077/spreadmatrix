@@ -5,7 +5,7 @@ import pandas as pd
 excel_path = "Spread Ratios.xlsx"
 excel_file = pd.ExcelFile(excel_path)
 
-# Load product list from All Product Stellar sheet
+# Load product list
 products_df = excel_file.parse("All Product Stellar")
 product_list = products_df.iloc[:, 0].dropna().tolist()
 
@@ -13,7 +13,7 @@ product_list = products_df.iloc[:, 0].dropna().tolist()
 category_sheets = [s for s in excel_file.sheet_names if s != "All Product Stellar"]
 category_data = {sheet: excel_file.parse(sheet, header=None) for sheet in category_sheets}
 
-# Build product-to-category mapping from all sheets
+# Build product-to-category mapping
 product_category_map = {}
 for sheet, df in category_data.items():
     hedge_start = df[df[0] == "HEDGE (TRADE) RATIO:"].index
@@ -25,9 +25,8 @@ for sheet, df in category_data.items():
     chart_start = chart_start[0] + 1
     hedge_end = chart_start - 2
 
-    # Get product names from hedge ratio matrix
-    hedge_df = df.iloc[hedge_start:hedge_end].dropna(how='all', axis=1).reset_index(drop=True)
     try:
+        hedge_df = df.iloc[hedge_start:hedge_end].dropna(how='all', axis=1).reset_index(drop=True)
         hedge_df.columns = hedge_df.iloc[0]
         hedge_df = hedge_df[1:]
         row_headers = hedge_df.iloc[:, 0].dropna().unique().tolist()
@@ -40,12 +39,20 @@ for sheet, df in category_data.items():
 
 # Streamlit UI
 st.title("Spread Ratio Dashboard")
-
 product1 = st.selectbox("Select Product 1", product_list)
 product2 = st.selectbox("Select Product 2", product_list)
 
 category1 = product_category_map.get(product1)
 category2 = product_category_map.get(product2)
+
+def bidirectional_lookup(df, product1, product2):
+    try:
+        return df.at[product1, product2]
+    except KeyError:
+        try:
+            return df.at[product2, product1]
+        except KeyError:
+            return "null"
 
 def find_ratios(product1, product2, sheet_name):
     df = category_data[sheet_name]
@@ -62,17 +69,12 @@ def find_ratios(product1, product2, sheet_name):
     chart_df.columns = chart_df.iloc[0]
     chart_df = chart_df[1:].set_index(chart_df.columns[0])
 
-    try:
-        hedge_value = hedge_df.at[product1, product2]
-        chart_value = chart_df.at[product1, product2]
+    hedge_value = bidirectional_lookup(hedge_df, product1, product2)
+    chart_value = bidirectional_lookup(chart_df, product1, product2)
 
-        hedge_value = float(hedge_value) if pd.notna(hedge_value) else "null"
-        chart_value = float(chart_value) if pd.notna(chart_value) else "null"
-        return hedge_value, chart_value
-    except Exception:
-        return "null", "null"
+    return hedge_value, chart_value
 
-# Determine whether to compute or null
+# Main logic
 if category1 and category2 and category1 == category2:
     hedge_ratio, chart_ratio = find_ratios(product1, product2, category1)
     st.markdown(f"### Category: `{category1}`")
@@ -80,7 +82,6 @@ else:
     hedge_ratio, chart_ratio = "null", "null"
     st.markdown("### Products are from different categories.")
 
-# Show ratios
 st.metric("Hedge Ratio", hedge_ratio)
 st.metric("Chart Ratio", chart_ratio)
 
