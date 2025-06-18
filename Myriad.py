@@ -22,7 +22,6 @@ product2 = st.selectbox("Select Product 2", product_list)
 # Attempt to find both products in one of the category sheets
 def find_ratios(product1, product2):
     for sheet, df in category_data.items():
-        # Find hedge matrix
         hedge_start = df[df[0] == "HEDGE (TRADE) RATIO:"].index
         chart_start = df[df[0] == "PRICE (CHART) RATIO:"].index
 
@@ -33,20 +32,21 @@ def find_ratios(product1, product2):
         chart_start = chart_start[0] + 1
 
         hedge_end = chart_start - 2
-        chart_end = len(df)
-
         hedge_df = df.iloc[hedge_start:hedge_end].dropna(how='all', axis=1).reset_index(drop=True)
         chart_df = df.iloc[chart_start:].dropna(how='all', axis=1).reset_index(drop=True)
 
         try:
             hedge_df.columns = hedge_df.iloc[0]
             hedge_df = hedge_df[1:].set_index(hedge_df.columns[0])
-
             chart_df.columns = chart_df.iloc[0]
             chart_df = chart_df[1:].set_index(chart_df.columns[0])
 
             hedge_value = hedge_df.loc[product1, product2]
             chart_value = chart_df.loc[product1, product2]
+
+            # Convert to primitive types for Streamlit display
+            hedge_value = hedge_value.item() if hasattr(hedge_value, 'item') else str(hedge_value)
+            chart_value = chart_value.item() if hasattr(chart_value, 'item') else str(chart_value)
 
             return sheet, hedge_value, chart_value
 
