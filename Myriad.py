@@ -47,12 +47,25 @@ category2 = product_category_map.get(product2)
 
 def bidirectional_lookup(df, product1, product2):
     try:
-        return df.at[product1, product2]
+        val = df.at[product1, product2]
     except KeyError:
         try:
-            return df.at[product2, product1]
+            val = df.at[product2, product1]
         except KeyError:
             return "null"
+
+    # If it's a Series, get the first non-null scalar value
+    if isinstance(val, pd.Series):
+        val = val.dropna().values[0] if not val.dropna().empty else "null"
+
+    # Convert to acceptable type
+    if pd.isna(val):
+        return "null"
+    elif isinstance(val, (int, float)):
+        return val
+    else:
+        return str(val)
+
 
 def find_ratios(product1, product2, sheet_name):
     df = category_data[sheet_name]
