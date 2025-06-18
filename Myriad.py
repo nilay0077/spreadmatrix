@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-# Define the sheet parameters as a DataFrame
+# --- Sheet parameters DataFrame ---
 sheet_params = pd.DataFrame({
     'SheetName': ['Equities', 'FEXD', 'Bonds', 'FX', 'Energy', 'Metals', 'Crops', 'Softs'],
     'Hedge_skiprows': [1, 1, 1, 1, 1, 1, 1, 1],
@@ -99,13 +99,19 @@ def get_ratios(product1, product2, sheet_name):
     price_ratio = fetch_ratio(price_df, product1, product2)
     return hedge_ratio, price_ratio
 
+def round_ratio(val, decimals=1):
+    try:
+        if isinstance(val, (int, float)) and not pd.isna(val):
+            return round(val, decimals)
+        return val
+    except Exception:
+        return val
+
 # --- Streamlit UI ---
 st.title("Spread Ratio Dashboard")
 
-# Dropdown 1: Select sheet/product type
 sheet_name = st.selectbox("Select your sheet (product type):", sheet_params['SheetName'].tolist())
 
-# Dropdowns 2 & 3: Select products (dependent on sheet)
 if sheet_name:
     products = get_product_list(sheet_name)
     product1 = st.selectbox("Select Product 1:", products, key="prod1")
@@ -113,8 +119,10 @@ if sheet_name:
 
     if product1 and product2 and product1 != product2:
         hedge_ratio, price_ratio = get_ratios(product1, product2, sheet_name)
+        hedge_ratio_rounded = round_ratio(hedge_ratio, 1)
+        price_ratio_rounded = round_ratio(price_ratio, 1)
         st.markdown(f"### Results for **{product1}** and **{product2}** in **{sheet_name}**")
-        st.write(f"**Hedge Ratio:** {hedge_ratio}")
-        st.write(f"**Price Ratio:** {price_ratio}")
+        st.write(f"**Hedge Ratio:** {hedge_ratio_rounded}")
+        st.write(f"**Price Ratio:** {price_ratio_rounded}")
     elif product1 == product2:
         st.info("Please select two different products.")
