@@ -36,7 +36,8 @@ def get_product_list(sheet_name):
     hedge_df = excel_data.parse(
         sheet_name=sheet_name,
         skiprows=int(params['Hedge_skiprows']),
-        nrows=int(params['Hedge_nrows'])
+        nrows=int(params['Hedge_nrows']),
+        header=0
     )
     hedge_df = clean_columns(hedge_df)
     hedge_df = clean_rows(hedge_df)
@@ -51,12 +52,14 @@ def get_ratios(product1, product2, sheet_name):
     hedge_df = excel_data.parse(
         sheet_name=sheet_name,
         skiprows=int(params['Hedge_skiprows']),
-        nrows=int(params['Hedge_nrows'])
+        nrows=int(params['Hedge_nrows']),
+        header=0
     )
     price_df = excel_data.parse(
         sheet_name=sheet_name,
         skiprows=int(params['Price_skiprows']),
-        nrows=int(params['Price_nrows'])
+        nrows=int(params['Price_nrows']),
+        header=0
     )
     hedge_df = clean_columns(hedge_df)
     price_df = clean_columns(price_df)
