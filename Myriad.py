@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-# --- Sheet parameters DataFrame ---
+# Define the sheet parameters as a DataFrame
 sheet_params = pd.DataFrame({
     'SheetName': ['Equities', 'FEXD', 'Bonds', 'FX', 'Energy', 'Metals', 'Crops', 'Softs'],
     'Hedge_skiprows': [1, 1, 1, 1, 1, 1, 1, 1],
@@ -11,9 +11,16 @@ sheet_params = pd.DataFrame({
     'LastProduct': ['SXF', 'FEXD24', 'BAX', 'UKNG', 'UKNG', 'COPPER', 'RICE', 'LUMBER']
 })
 
-file_path = "Spread Ratios.xlsx"
+file_path = "/Users/nilaysinghsolanki/Downloads/Spread Ratios.xlsx"
+excel_data = pd.ExcelFile(file_path)
 
-# --- Cleaning helpers ---
+def get_sheet_params(sheet_name):
+    row = sheet_params[sheet_params['SheetName'] == sheet_name]
+    if row.empty:
+        st.error(f"Sheet name '{sheet_name}' not found in parameters.")
+        st.stop()
+    return row.iloc[0]
+
 def clean_columns(df):
     return df.loc[:, [col for col in df.columns if not str(col).startswith("Unnamed") and str(col).strip() != ""]]
 
@@ -24,43 +31,29 @@ def clean_rows(df):
         df = df[df['Product'].astype(str).str.strip() != ""]
     return df
 
-# --- Parameter retrieval ---
-def get_sheet_params(sheet_name):
-    row = sheet_params[sheet_params['SheetName'] == sheet_name]
-    if row.empty:
-        st.error(f"Sheet name '{sheet_name}' not found in parameters.")
-        st.stop()
-    return row.iloc[0]
-
-# --- Product list for dropdowns ---
 def get_product_list(sheet_name):
     params = get_sheet_params(sheet_name)
-    hedge_df = pd.read_excel(
-        file_path,
+    hedge_df = excel_data.parse(
         sheet_name=sheet_name,
         skiprows=int(params['Hedge_skiprows']),
         nrows=int(params['Hedge_nrows'])
     )
     hedge_df = clean_columns(hedge_df)
     hedge_df = clean_rows(hedge_df)
-    # Products are columns (excluding 'Product') and valid entries in 'Product'
     products = [col for col in hedge_df.columns if col != 'Product']
     if 'Product' in hedge_df.columns:
         products += hedge_df['Product'].dropna().unique().tolist()
     products = sorted(set([str(p).strip() for p in products if pd.notna(p) and str(p).strip() != ""]))
     return products
 
-# --- Ratio fetching with N/A handling ---
 def get_ratios(product1, product2, sheet_name):
     params = get_sheet_params(sheet_name)
-    hedge_df = pd.read_excel(
-        file_path,
+    hedge_df = excel_data.parse(
         sheet_name=sheet_name,
         skiprows=int(params['Hedge_skiprows']),
         nrows=int(params['Hedge_nrows'])
     )
-    price_df = pd.read_excel(
-        file_path,
+    price_df = excel_data.parse(
         sheet_name=sheet_name,
         skiprows=int(params['Price_skiprows']),
         nrows=int(params['Price_nrows'])
