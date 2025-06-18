@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-# Sheet parameters DataFrame
+# --- Sheet parameters DataFrame ---
 sheet_params = pd.DataFrame({
     'SheetName': ['Equities', 'FEXD', 'Bonds', 'FX', 'Energy', 'Metals', 'Crops', 'Softs'],
     'Hedge_skiprows': [1, 1, 1, 1, 1, 1, 1, 1],
@@ -13,6 +13,18 @@ sheet_params = pd.DataFrame({
 
 file_path = "Spread Ratios.xlsx"
 
+# --- Cleaning helpers ---
+def clean_columns(df):
+    return df.loc[:, [col for col in df.columns if not str(col).startswith("Unnamed") and str(col).strip() != ""]]
+
+def clean_rows(df):
+    if 'Product' in df.columns:
+        df = df[df['Product'].notna()]
+        df = df[~df['Product'].astype(str).str.startswith("Unnamed")]
+        df = df[df['Product'].astype(str).str.strip() != ""]
+    return df
+
+# --- Parameter retrieval ---
 def get_sheet_params(sheet_name):
     row = sheet_params[sheet_params['SheetName'] == sheet_name]
     if row.empty:
@@ -20,6 +32,7 @@ def get_sheet_params(sheet_name):
         st.stop()
     return row.iloc[0]
 
+# --- Product list for dropdowns ---
 def get_product_list(sheet_name):
     params = get_sheet_params(sheet_name)
     hedge_df = pd.read_excel(
@@ -28,13 +41,16 @@ def get_product_list(sheet_name):
         skiprows=int(params['Hedge_skiprows']),
         nrows=int(params['Hedge_nrows'])
     )
-    hedge_df.columns = [str(c).strip() for c in hedge_df.columns]
+    hedge_df = clean_columns(hedge_df)
+    hedge_df = clean_rows(hedge_df)
+    # Products are columns (excluding 'Product') and valid entries in 'Product'
     products = [col for col in hedge_df.columns if col != 'Product']
     if 'Product' in hedge_df.columns:
         products += hedge_df['Product'].dropna().unique().tolist()
-    products = sorted(set([str(p).strip() for p in products if pd.notna(p) and str(p).strip() != '']))
+    products = sorted(set([str(p).strip() for p in products if pd.notna(p) and str(p).strip() != ""]))
     return products
 
+# --- Ratio fetching with N/A handling ---
 def get_ratios(product1, product2, sheet_name):
     params = get_sheet_params(sheet_name)
     hedge_df = pd.read_excel(
@@ -49,6 +65,10 @@ def get_ratios(product1, product2, sheet_name):
         skiprows=int(params['Price_skiprows']),
         nrows=int(params['Price_nrows'])
     )
+    hedge_df = clean_columns(hedge_df)
+    price_df = clean_columns(price_df)
+    hedge_df = clean_rows(hedge_df)
+    price_df = clean_rows(price_df)
     last_product = params['LastProduct']
     cols_to_keep = hedge_df.columns[:hedge_df.columns.get_loc(last_product)+1]
     hedge_df = hedge_df[cols_to_keep]
@@ -84,22 +104,21 @@ def get_ratios(product1, product2, sheet_name):
     return hedge_ratio, price_ratio
 
 # --- Streamlit UI ---
-
 st.title("Spread Ratio Dashboard")
 
 # Dropdown 1: Select sheet/product type
 sheet_name = st.selectbox("Select your sheet (product type):", sheet_params['SheetName'].tolist())
 
 # Dropdowns 2 & 3: Select products (dependent on sheet)
-products = get_product_list(sheet_name)
-product1 = st.selectbox("Select Product 1:", products)
-product2 = st.selectbox("Select Product 2:", products)
+if sheet_name:
+    products = get_product_list(sheet_name)
+    product1 = st.selectbox("Select Product 1:", products, key="prod1")
+    product2 = st.selectbox("Select Product 2:", products, key="prod2")
 
-# Show ratios when both products are selected and not the same
-if product1 and product2 and product1 != product2:
-    hedge_ratio, price_ratio = get_ratios(product1, product2, sheet_name)
-    st.markdown(f"### Results for **{product1}** and **{product2}** in **{sheet_name}**")
-    st.write(f"**Hedge Ratio:** {hedge_ratio}")
-    st.write(f"**Price Ratio:** {price_ratio}")
-elif product1 == product2:
-    st.info("Please select two different products.")
+    if product1 and product2 and product1 != product2:
+        hedge_ratio, price_ratio = get_ratios(product1, product2, sheet_name)
+        st.markdown(f"### Results for **{product1}** and **{product2}** in **{sheet_name}**")
+        st.write(f"**Hedge Ratio:** {hedge_ratio}")
+        st.write(f"**Price Ratio:** {price_ratio}")
+    elif product1 == product2:
+        st.info("Please select two different products.")
