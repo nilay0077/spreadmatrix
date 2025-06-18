@@ -41,12 +41,19 @@ def find_ratios(product1, product2):
             chart_df.columns = chart_df.iloc[0]
             chart_df = chart_df[1:].set_index(chart_df.columns[0])
 
-            hedge_value = hedge_df.loc[product1, product2]
-            chart_value = chart_df.loc[product1, product2]
+            if product1 in hedge_df.index and product2 in hedge_df.columns:
+                hedge_value = hedge_df.at[product1, product2]
+            else:
+                hedge_value = None
+
+            if product1 in chart_df.index and product2 in chart_df.columns:
+                chart_value = chart_df.at[product1, product2]
+            else:
+                chart_value = None
 
             # Convert to primitive types for Streamlit display
-            hedge_value = hedge_value.item() if hasattr(hedge_value, 'item') else str(hedge_value)
-            chart_value = chart_value.item() if hasattr(chart_value, 'item') else str(chart_value)
+            hedge_value = float(hedge_value) if hedge_value is not None else "N/A"
+            chart_value = float(chart_value) if chart_value is not None else "N/A"
 
             return sheet, hedge_value, chart_value
 
