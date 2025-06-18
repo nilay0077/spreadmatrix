@@ -11,10 +11,8 @@ sheet_params = pd.DataFrame({
     'LastProduct': ['SXF', 'FEXD24', 'BAX', 'UKNG', 'UKNG', 'COPPER', 'RICE', 'LUMBER']
 })
 
-# File path to your Excel file
-file_path = "Spread Ratios.xlsx"
+file_path = "/Users/nilaysinghsolanki/Downloads/Spread Ratios.xlsx"
 
-# Helper to get sheet parameters
 def get_sheet_params(sheet_name):
     row = sheet_params[sheet_params['SheetName'] == sheet_name]
     if row.empty:
@@ -22,7 +20,6 @@ def get_sheet_params(sheet_name):
         st.stop()
     return row.iloc[0]
 
-# Helper to get product list for dropdowns
 def get_product_list(sheet_name):
     params = get_sheet_params(sheet_name)
     hedge_df = pd.read_excel(
@@ -38,10 +35,8 @@ def get_product_list(sheet_name):
     products = sorted(set([str(p).strip() for p in products if pd.notna(p) and str(p).strip() != '']))
     return products
 
-# Helper to fetch ratios with N/A handling
 def get_ratios(product1, product2, sheet_name):
     params = get_sheet_params(sheet_name)
-    # Load DataFrames
     hedge_df = pd.read_excel(
         file_path,
         sheet_name=sheet_name,
@@ -90,15 +85,15 @@ def get_ratios(product1, product2, sheet_name):
 
 # --- Streamlit UI ---
 
-st.title("Hedge & Price Ratio Lookup")
+st.title("Spread Ratio Dashboard")
 
 # Dropdown 1: Select sheet/product type
-sheet_name = st.selectbox("Select Product Type (Sheet):", sheet_params['SheetName'].tolist())
+sheet_name = st.selectbox("Select your sheet (product type):", sheet_params['SheetName'].tolist())
 
 # Dropdowns 2 & 3: Select products (dependent on sheet)
 products = get_product_list(sheet_name)
-product1 = st.selectbox("Select First Product:", products)
-product2 = st.selectbox("Select Second Product:", products)
+product1 = st.selectbox("Select Product 1:", products)
+product2 = st.selectbox("Select Product 2:", products)
 
 # Show ratios when both products are selected and not the same
 if product1 and product2 and product1 != product2:
@@ -108,4 +103,3 @@ if product1 and product2 and product1 != product2:
     st.write(f"**Price Ratio:** {price_ratio}")
 elif product1 == product2:
     st.info("Please select two different products.")
-
