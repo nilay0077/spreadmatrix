@@ -7,10 +7,10 @@ excel_file = pd.ExcelFile(excel_path)
 
 # Load products list
 products_df = excel_file.parse("All Product Stellar")
-product_list = products_df.iloc[:, 0].dropna().tolist()  # Assuming first column contains product names
+product_list = products_df.iloc[:, 0].dropna().tolist()
 
-# Load all category sheets
-category_sheets = [sheet for sheet in excel_file.sheet_names if sheet not in ["All Product Stellar"]]
+# Load all category sheets except the product list
+category_sheets = [s for s in excel_file.sheet_names if s != "All Product Stellar"]
 category_data = {sheet: excel_file.parse(sheet, header=None) for sheet in category_sheets}
 
 st.title("Spread Ratio Dashboard")
@@ -19,40 +19,48 @@ st.title("Spread Ratio Dashboard")
 product1 = st.selectbox("Select Product 1", product_list)
 product2 = st.selectbox("Select Product 2", product_list)
 
-# Find category that contains both products
-def find_common_category(product1, product2):
+# Attempt to find both products in one of the category sheets
+def find_ratios(product1, product2):
     for sheet, df in category_data.items():
-        try:
-            header_row_index = df[df.apply(lambda row: row.astype(str).str.contains(product1).any(), axis=1)].index[0]
-            if product2 in df.iloc[header_row_index, :].values or product2 in df.iloc[:, 0].values:
-                return sheet, df, header_row_index
-        except IndexError:
+        # Find hedge matrix
+        hedge_start = df[df[0] == "HEDGE (TRADE) RATIO:"].index
+        chart_start = df[df[0] == "PRICE (CHART) RATIO:"].index
+
+        if len(hedge_start) == 0 or len(chart_start) == 0:
             continue
+
+        hedge_start = hedge_start[0] + 1
+        chart_start = chart_start[0] + 1
+
+        hedge_end = chart_start - 2
+        chart_end = len(df)
+
+        hedge_df = df.iloc[hedge_start:hedge_end].dropna(how='all', axis=1).reset_index(drop=True)
+        chart_df = df.iloc[chart_start:].dropna(how='all', axis=1).reset_index(drop=True)
+
+        try:
+            hedge_df.columns = hedge_df.iloc[0]
+            hedge_df = hedge_df[1:].set_index(hedge_df.columns[0])
+
+            chart_df.columns = chart_df.iloc[0]
+            chart_df = chart_df[1:].set_index(chart_df.columns[0])
+
+            hedge_value = hedge_df.loc[product1, product2]
+            chart_value = chart_df.loc[product1, product2]
+
+            return sheet, hedge_value, chart_value
+
+        except Exception:
+            continue
+
     return None, None, None
 
-category, df, header_index = find_common_category(product1, product2)
+# Run lookup
+category, hedge_ratio, chart_ratio = find_ratios(product1, product2)
 
 if category:
     st.markdown(f"### Category Found: `{category}`")
-
-    # Assume first matrix is chart ratio, second is hedge ratio, separated by an empty row
-    split_index = df[df.isnull().all(axis=1)].index[0]  # Split point between matrices
-    chart_ratio_df = df.iloc[header_index:split_index].reset_index(drop=True)
-    hedge_ratio_df = df.iloc[split_index+1:].reset_index(drop=True)
-
-    # Extract ratio values
-    try:
-        chart_ratio = chart_ratio_df.set_index(chart_ratio_df.columns[0]).loc[product1, product2]
-    except KeyError:
-        chart_ratio = "Not found"
-
-    try:
-        hedge_ratio = hedge_ratio_df.set_index(hedge_ratio_df.columns[0]).loc[product1, product2]
-    except KeyError:
-        hedge_ratio = "Not found"
-
-    st.metric("Chart Ratio", chart_ratio)
     st.metric("Hedge Ratio", hedge_ratio)
+    st.metric("Chart Ratio", chart_ratio)
 else:
-    st.warning("No common category sheet found containing both selected products.")
-
+    st.warning("No category sheet found with both selected products.")
