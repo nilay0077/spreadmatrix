@@ -39,24 +39,32 @@ def round_ratio(val, decimals=1):
         return val
 
 # ---- Fetch Data from API ----
-@st.cache_data
+@st.cache_data(ttl=60)
 def load_data():
-    url = "https://mocki.io/v1/983df25d-0c2e-4d8b-93c0-17481fbe05ec"  # Fake market data
-    response = requests.get(url)
-    json_data = response.json()
+    url = "http://127.0.0.1:8000/data"  # <-- Local FastAPI endpoint
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        json_data = response.json()
 
-    hedge_df = pd.DataFrame(json_data["hedge_ratios"])
-    price_df = pd.DataFrame(json_data["price_ratios"])
+        hedge_df = pd.DataFrame(json_data["hedge_ratios"])
+        price_df = pd.DataFrame(json_data["price_ratios"])
 
-    hedge_df = clean_columns(hedge_df)
-    price_df = clean_columns(price_df)
-    hedge_df = clean_rows(hedge_df)
-    price_df = clean_rows(price_df)
+        hedge_df = clean_columns(hedge_df)
+        price_df = clean_columns(price_df)
+        hedge_df = clean_rows(hedge_df)
+        price_df = clean_rows(price_df)
 
-    return hedge_df, price_df
+        return hedge_df, price_df
+    except Exception as e:
+        st.error(f"Failed to fetch API data: {e}")
+        st.stop()
 
 # ---- Streamlit UI ----
 st.title("📊 Spread Ratio Dashboard (API Version)")
+
+if st.button("🔄 Reload Data"):
+    st.cache_data.clear()
 
 hedge_df, price_df = load_data()
 products = hedge_df['Product'].tolist()
